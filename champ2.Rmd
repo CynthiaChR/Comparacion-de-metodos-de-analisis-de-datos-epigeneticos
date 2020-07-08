@@ -1,0 +1,172 @@
+---
+title: "champ2"
+author: "Cynthia Chardí Raga"
+date: "24/4/2020"
+output: pdf_document
+---
+SI
+
+```{r}
+library(ChAMP)
+```
+
+HAY QUE BORRAR LAS CARPETAS
+
+SI 
+
+```{r}
+Test_Dir=system.file("C:/Users/Cyn/Desktop/TFM_Data/champ",package="ChAMPdata")
+
+MyLoad <- champ.load("C:/Users/Cyn/Desktop/TFM_Data/champ", arraytype = "450K")
+
+
+```
+
+
+```{r}
+tar = MyLoad$pd
+
+tar
+```
+
+
+```{r}
+ champ.QC(beta = MyLoad$beta,
+             pheno=MyLoad$pd$Sample_Group,
+             mdsPlot=TRUE,
+             densityPlot=TRUE,
+             dendrogram=TRUE,
+             PDFplot=TRUE,
+             Rplot=TRUE,
+             Feature.sel="None",
+             resultsDir="C:/Users/Cyn/Desktop/TFM_Data/champ/CHAMP_QCimages/")
+```
+
+
+```{r}
+MyNorm <-   champ.norm(beta=MyLoad$beta,
+               rgSet=MyLoad$rgSet,
+               mset=MyLoad$mset,
+               resultsDir="C:/Users/Cyn/Desktop/TFM_Data/champ//CHAMP_Normalization/",
+               method="SWAN",
+               plotBMIQ=FALSE,
+               arraytype="450K",
+               cores=5)
+```
+```{r}
+MyNorm <- champ.norm(beta= MyLoad$beta,arraytype="450K",cores=5)
+```
+
+
+```{r}
+champ.SVD(beta = MyNorm, 
+              rgSet=NULL,
+              pd=MyLoad$pd,
+              RGEffect=FALSE,
+              PDFplot=TRUE,
+              Rplot=TRUE,
+              resultsDir="C:/Users/Cyn/Desktop/TFM_Data/champ/CHAMP_SVDimages/")
+```
+
+
+
+```{r}
+
+MyCombat <- champ.runCombat(beta=MyNorm,
+                    pd= MyLoad$pd,
+                    variablename="Sample_Group",
+                    batchname=c("Slide"),
+                    logitTrans=TRUE)
+```
+
+
+```{r}
+
+MYDMP <-  champ.DMP(beta = MyNorm,
+              pheno = MyLoad$pd$Sample_Group,
+              compare.group = c("Mania","Control"),
+              adjPVal = 0.05,
+              adjust.method = "BH",
+              arraytype = "450K")
+```
+
+
+```{r}
+head(MYDMP[[1]])
+```
+
+
+
+```{r}
+MYDMP <- champ.DMP(beta=MyNorm, pheno=MyLoad$pd$Sample_Group, compare.group=c("Mania", "Control"))
+
+```
+
+
+```{r}
+hmc <- MYDMP[[1]][MYDMP[[1]]$deltaBeta>0,]
+
+```
+
+
+
+```{r}
+hmc
+```
+
+
+
+```{r}
+write.csv(hmc, file = "results_hmc.csv", row.names=TRUE)
+```
+
+
+```{r}
+MYDMR <- champ.DMR(beta=MyNorm,pheno=MyLoad$pd$Sample_Group,method="Bumphunter")
+```
+
+
+```{r}
+head(MYDMR)
+```
+
+
+
+```{r}
+myBlock <- champ.Block(beta=MyNorm,pheno=MyLoad$pd$Sample_Group,arraytype="450K")
+```
+
+```{r}
+head(myBlock$Block)
+```
+
+
+```{r}
+myGSEA <- champ.GSEA(beta=MyNorm,DMP=MYDMP[[1]], DMR=MYDMR, arraytype="450K",adjPval=0.05, method="fisher")
+```
+
+
+
+```{r}
+
+myGSEA$DMP
+
+```
+
+```{r}
+myGSEA$DMR
+
+```
+
+```{r}
+myCNA <- champ.CNA(intensity=MyLoad$intensity,pheno=MyLoad$pd$Sample_Group)
+```
+
+
+```{r}
+myRefBase <- champ.refbase(beta=MyNorm,arraytype="450K")
+
+```
+
+
+
