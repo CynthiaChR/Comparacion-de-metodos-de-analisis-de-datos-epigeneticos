@@ -1,0 +1,425 @@
+---
+title: "Untitled"
+author: "Cynthia Chardí Raga"
+date: "15/4/2020"
+output: pdf_document
+---
+```{r}
+
+library(RnBeads)
+```
+
+
+```{r}
+library(knitr)
+opts_knit$set(root.dir = "C:/Users/Cyn/Desktop/TFM_Data/datosRnB")
+```
+
+
+```{r}
+data.dir1 <-"C:/Users/Cyn/Desktop/TFM_Data/datosRnB"
+
+idat.dir <- file.path(data.dir1)
+
+Samp.Annotation <- file.path(data.dir1,"Sample_Annotation.csv")
+
+Analysis.dir <- file.path("C:/Users/Cyn/Desktop/TFM_Data/datosRnB/Analysis")
+
+report.dir <- file.path(Analysis.dir, "reports")
+
+idat.dir
+
+show(Samp.Annotation)
+
+```
+
+```{r}
+rnb.options(filtering.sex.chromosomes.removal=TRUE, enforce.memory.management=TRUE,
+identifiers.column="Sample_ID")
+
+```
+
+
+```{r}
+
+report.dir <- file.path(Analysis.dir, "reports_details")
+rnb.initialize.reports(report.dir)
+
+logger.start(fname=NA)
+```
+
+```{r}
+
+data.source <- c(idat.dir, Samp.Annotation)
+
+data.source
+```
+
+```{r}
+ library(RnBeads.hg19)
+result <- rnb.run.import(data.source= data.source ,
+data.type="idat.dir", dir.reports=report.dir)
+
+rnb.set <- result$rnb.set
+```
+
+```{r}
+annot.sites <- annotation(rnb.set)
+head(annot.sites)
+```
+
+
+```{r}
+rnb.set
+summary(pheno(rnb.set))
+```
+
+
+```{r}
+dim(M(rnb.set))
+summary(M(rnb.set))
+```
+
+```{r}
+dim(meth(rnb.set))
+summary(meth(rnb.set))
+```
+
+```{r}
+dim(meth(rnb.set, type="promoters"))
+summary(meth(rnb.set, type="promoters"))
+summary(dpval(rnb.set))
+```
+
+CONTROL DE CALIDAD
+
+```{r}
+
+Sys.setenv(R_GSCMD = "C:\\Program Files \\gs\\gs9.52\\bin\\gswin64c.exe")
+rnb.run.qc(rnb.set, report.dir)
+
+```
+
+
+
+```{r}
+rnb.plot.control.boxplot(rnb.set, "BISULFITE CONVERSION I")
+
+```
+
+
+
+```{r}
+rnb.plot.control.barplot(rnb.set, "BISULFITE CONVERSION I.2")
+
+```
+
+
+```{r}
+rnb.plot.negative.boxplot(rnb.set)
+
+```
+
+
+
+```{r}
+annot450 <- rnb.annotation2data.frame(rnb.get.annotation("probes450"))
+ annot450[grep("rs", rownames(annot450)), ]
+```
+
+
+
+```{r}
+library(RnBeads)
+rnb.set.unfiltered <- rnb.set
+rnb.plot.snp.heatmap(rnb.set.unfiltered)
+```
+
+
+```{r}
+rnb.options(qc.snp.boxplot=TRUE)
+
+```
+
+
+
+```{r}
+rnb.options(import.sex.prediction = FALSE)
+```
+
+
+
+```{r}
+rnb.options(qc.cnv=TRUE)
+#result <- run.(rnb.set.unfiltered,dir.reports=report.dir)
+rnb.options(qc.cnv.refbased=TRUE)
+```
+
+
+
+PREPROCESAMIENTO
+
+
+```{r}
+
+result <- rnb.run.preprocessing(rnb.set.unfiltered, dir.reports=report.dir)
+rnb.set <- result$rnb.set
+```
+
+FILTRADO
+
+
+```{r}
+nrow(meth(rnb.set.unfiltered))
+```
+
+
+
+```{r}
+rnb.set.filtered <- rnb.execute.context.removal(rnb.set.unfiltered)$dataset
+nrow(meth(rnb.set.filtered))
+```
+
+
+
+```{r}
+ rnb.set.filtered <- rnb.execute.snp.removal(rnb.set.filtered, snp="any")$dataset
+nrow(meth(rnb.set.filtered))
+```
+
+
+
+```{r}
+rnb.set.filtered <- rnb.execute.sex.removal(rnb.set.filtered)$dataset
+ nrow(meth(rnb.set.filtered))
+
+```
+
+
+```{r}
+rnb.set.filtered <- rnb.execute.na.removal(rnb.set.filtered)$dataset
+nrow(meth(rnb.set.filtered))
+```
+
+
+
+```{r}
+ rnb.set.filtered <- rnb.execute.variability.removal(rnb.set.filtered, 0.005)$dataset
+ nrow(meth(rnb.set.filtered))
+
+```
+
+
+NORMALIZACION
+
+
+```{r}
+rnb.set.norm <- rnb.execute.normalization(rnb.set.unfiltered, method="illumina",
+bgcorr.method="methylumi.noob")
+
+```
+CELLCOUNT
+
+```{r}
+ rnb.options(inference.reference.methylome.column="CellType")
+```
+
+```{r}
+ ct.obj<-rnb.execute.ct.estimation(rnb.set, cell.type.column="CellType",test.max.markers=1, top.markers=1)
+```
+
+4.5 ANALISIS EXPLORATORIO 27
+
+```{r}
+ rnb.run.exploratory(rnb.set, report.dir)
+```
+
+
+
+```{r}
+dred.sites <- rnb.execute.dreduction(rnb.set)
+dred.promoters <- rnb.execute.dreduction(rnb.set, target="promoters")
+dred <- list(sites=dred.sites, promoters=dred.promoters)
+
+```
+
+
+
+```{r}
+sample.colors <- ifelse(pheno(rnb.set)$Group == "Mania", "red", "blue")
+                                
+plot(dred[[1]]$mds$euclidean, col=sample.colors,
+ xlab="Dimension 1", ylab="Dimension 2")
+
+```
+
+
+```{r}
+assoc <- rnb.execute.batcheffects(rnb.set, pcoordinates=dred)
+ str(assoc)
+```
+
+
+```{r}
+probe.types <- as.character(annotation(rnb.set)[, "Design"])
+pdf(file="deviationPlot_probeType.pdf", width=11)
+deviation.plot.beta(meth(rnb.set), probe.types,c.legend=c("I"="blue", "II"="red"))
+dev.off()
+```
+
+Clustering
+
+```{r}
+clusterings.sites <- rnb.execute.clustering(rnb.set, region.type="sites")
+clusterings.promoters <- rnb.execute.clustering(rnb.set, region.type="promoters")
+
+```
+
+
+
+```{r}
+X <- meth(rnb.set, type="promoters")[1:5, ]
+cresult <- clusterings.promoters[[7]]@result
+attr(cresult, "class") <- "hclust"
+cresult <- as.dendrogram(cresult)
+pdf(file="promoter_heatmap.pdf")
+heatmap.2(X, Rowv=TRUE, Colv=cresult, dendrogram="both",
+          scale="none", trace="none")
+dev.off()
+
+```
+
+Differential Methylation Analysis
+
+
+```{r}
+cmp.cols <- "Group"
+reg.types <- c("genes", "promoters")
+ diffmeth <- rnb.execute.computeDiffMeth(rnb.set, cmp.cols,
+                                          region.types=reg.types)
+```
+
+
+```{r}
+str(diffmeth)
+```
+
+
+
+```{r}
+comparison <- get.comparisons(diffmeth)[1]
+tab.sites <- get.table(diffmeth, comparison,
+                        "sites", return.data.frame=TRUE)
+str(tab.sites)
+tab.promoters <- get.table(diffmeth, comparison, "promoters",
+                            return.data.frame=TRUE)
+str(tab.promoters)
+
+```
+
+
+
+```{r}
+dmps <- tab.sites[order(tab.sites[, "combinedRank"]), ]
+summary(dmps[1:100, ])
+summary(dmps[1:1000, ])
+```
+
+
+```{r}
+which.diffmeth <- abs(dmps[, "mean.diff"])>0.2 & dmps$diffmeth.p.adj.fdr<0.05
+
+dmps.cutoff <- dmps[which.diffmeth, ]
+```
+
+
+
+```{r}
+dmrs <- get.table(diffmeth, comparison, "promoters")
+plot(dmrs[, "mean.mean.diff"], -log10(dmrs[, "comb.p.val"]),
+      xlab="mean difference", ylab="-log10(combined p-value)", col="blue")
+```
+```{r}
+head(dmps)
+```
+
+
+
+```{r}
+head(dmrs)
+```
+
+
+Differential Variability Analysis
+
+
+```{r}
+rnb.options("differential.variability"=TRUE)
+
+cmp.cols <- "Group"
+reg.types <- c("genes","promoters")
+diff.var <- rnb.execute.diffVar(rnb.set,cmp.cols,region.types=reg.types)
+comparison <- get.comparisons(diff.var)[1]
+tab.sites <- get.table(diff.var,comparison,"sites",return.data.frame=TRUE)
+tab.genes <- get.table(diff.var,comparison,"genes",return.data.frame=TRUE)
+
+```
+
+Enrichment Analysis of Differentially Methylated Regions
+
+
+```{r}
+rnb.options("differential.enrichment.go"=TRUE)
+rnb.options("differential.enrichment.lola"=TRUE)
+
+```
+
+
+```{r}
+enrich.go <- performGoEnrichment.diffMeth(rnb.set, diffmeth, verbose=TRUE)
+```
+
+
+
+```{r}
+enrich.table.go <- enrich.go[["region"]][[comparison]][["BP"]][["promoters"]][["rankCut_500"]][["hypo"]]
+class(enrich.table.go)
+summary(enrich.table.go)
+
+```
+
+
+```{r}
+lolaDest <- tempfile()
+dir.create(lolaDest)
+lolaDirs <- downloadLolaDbs(lolaDest, dbs="LOLACore")
+
+```
+
+
+
+```{r}
+library(LOLA)
+enrich.lola <- performLolaEnrichment.diffMeth(rnb.set, diffmeth, lolaDirs[["hg19"]])
+```
+
+
+
+```{r}
+enrich.table.lola <- enrich.lola$region[[comparison]][["promoters"]]
+enrich.table.lola <-  enrich.table.lola[enrich.table.lola$userSet=="rankCut_500_hyper",]
+lolaBarPlot(enrich.lola$lolaDb, enrich.table.lola, scoreCol="oddsRatio",
+            orderCol="maxRnk", pvalCut=0.05)
+lolaBoxPlotPerTarget(enrich.lola$lolaDb, enrich.table.lola, scoreCol="pValueLog",
+                      orderCol="maxRnk", pvalCut=0.05)
+
+```
+Tracks and Tables
+
+```{r}
+rnb.options(export.to.csv=TRUE)
+rnb.run.tnt(rnb.set, report.dir)
+```
+
+
+
