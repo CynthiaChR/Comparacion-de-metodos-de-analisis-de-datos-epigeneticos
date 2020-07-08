@@ -1,0 +1,341 @@
+---
+title: "Minfi"
+author: "Cynthia Chardí Raga"
+date: "6/4/2020"
+output: pdf_document
+---
+
+
+```{r}
+library(minfi)
+library(limma)
+library(GEOquery)
+library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+library(IlluminaHumanMethylation450kmanifest)
+library(RColorBrewer)
+library(missMethyl)
+```
+
+```{r}
+library(matrixStats)
+library(Gviz)
+library(DMRcate)
+```
+
+```{r}
+annot450k = getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+
+head(annot450k)
+
+```
+
+
+
+
+getwd()
+setwd("C:/Users/Cyn/Desktop/TFM_Data/Datos")
+
+
+```{r}
+Basedir = "C:/Users/Cyn/Desktop/TFM_Data/idat"
+
+Basedir
+
+list.files(Basedir, recursive = TRUE)
+
+```
+
+
+```{r}
+
+SampleSheet <- read.metharray.sheet(Basedir, pattern = "SampleSheet.csv$", recursive = TRUE, verbose = TRUE, ignore.case = TRUE)
+
+SampleSheet
+
+```
+
+```{r}
+sub(Basedir, "", SampleSheet$Basename)
+```
+
+extended = FALSE, verbose = FALSE, force = FALSE
+
+```{r}
+rgSset <-  read.metharray.exp(Basedir, targets = SampleSheet)
+
+rgSset
+```
+
+```{r}
+pD <- pData(rgSset)
+
+dim(getRed(rgSset))
+
+dim(getGreen(rgSset))
+
+pD[,1:5]
+
+```
+
+```{r}
+manifest <- getManifest(rgSset)
+manifest
+
+```
+
+
+```{r}
+head(getProbeInfo(manifest))
+```
+
+
+```{r}
+densityPlot(rgSset, sampGroups = pD$Group, main = "Beta", xlab = "Beta")
+```
+
+
+```{r}
+par(oma=c(2,10,1,1))
+
+densityBeanPlot(rgSset, sampGroups = pD$Sample_label, sampNames = pD$Group)
+```
+aqui
+
+```{r}
+MsetEx <- preprocessRaw(rgSset)
+
+MsetEx
+```
+
+
+```{r}
+minfi::getMeth(MsetEx)[1:5,1:3]
+```
+
+
+```{r}
+minfi::getUnmeth(MsetEx)[1:5,1:3]
+```
+
+
+```{r}
+RSet <- ratioConvert(MsetEx, what = "both", keepCN = TRUE)
+RSet
+```
+
+```{r}
+BETA <- minfi::getBeta(RSet)[1:4,1:3]
+
+BETA
+```
+
+```{r}
+GRset <- mapToGenome(RSet)
+GRset
+```
+
+
+
+```{r}
+Beta <- minfi::getBeta(GRset)[1:4,1:3]
+
+Beta
+```
+
+```{r}
+MM <- minfi::getM(GRset)[1:4,1:3]
+
+MM
+
+```
+
+```{r}
+CN <- minfi::getCN(GRset)[1:4,1:3]
+
+CN
+
+```
+
+
+```{r}
+sampleNames <- sampleNames(GRset)
+probeNames <- featureNames(GRset)
+pheno <- pData(GRset)
+```
+
+```{r}
+gr <- granges(GRset)
+head(gr, n= 3)
+```
+
+```{r}
+annotation <- getAnnotation(GRset)
+names(annotation)
+```
+
+
+
+```{r}
+qc <- getQC(MsetEx)
+head(qc)
+```
+
+
+```{r}
+plotQC(qc)
+```
+
+
+```{r}
+densityPlot(MsetEx, sampGroups = pD$Group)
+```
+
+```{r}
+GRset.funnorm <- preprocessFunnorm(rgSset)
+```
+
+```{r}
+snps <- getSnpInfo(GRset)
+head(snps,10)
+```
+
+
+```{r}
+GRset <- addSnpInfo(GRset)
+```
+
+```{r}
+GRset <- dropLociWithSnps(GRset, snps=c("SBE","CpG"), maf=0)
+```
+
+
+```{r}
+library(FlowSorted.Blood.450k)
+cellCounts <- estimateCellCounts(rgSset)
+```
+
+
+
+
+```{r}
+beta <- getBeta(GRset.funnorm)
+age  <- pData(GRset.funnorm)$Group
+dmp2 <- dmpFinder(beta, pheno = age  , type = "categorical")
+head(dmp2)
+```
+
+```{r}
+pheno <- pData(GRset.funnorm)$Group
+designMatrix <- model.matrix(~ pheno)
+```
+
+```{r}
+dmrs <- bumphunter(GRset.funnorm, design = designMatrix, 
+             cutoff = 0.2, B=0, type="Beta")
+```
+
+```{r}
+dmrs <- bumphunter(GRset.funnorm, design = designMatrix, 
+             cutoff = 0.2, B=10, type="Beta")
+```
+
+
+```{r}
+library(doParallel)
+registerDoParallel(cores = 3)
+
+```
+
+```{r}
+names(dmrs)
+head(dmrs$table, n=5)
+```
+
+```{r}
+data("dmrs_B1000_c02")
+head(dmrs$table)
+```
+
+
+```{r}
+IlluminaHumanMethylation450kmanifest
+
+```
+
+```{r}
+ head(getProbeInfo(IlluminaHumanMethylation450kmanifest, type = "I"), n = 5)
+```
+
+```{r}
+head(getProbeInfo(IlluminaHumanMethylation450kmanifest, type = "II"), n = 5)
+```
+
+```{r}
+head(getProbeInfo(IlluminaHumanMethylation450kmanifest, type = "Control"), n = 5)
+```
+
+
+```{r}
+snps <- getSnpBeta(rgSset)
+head(snps)
+```
+
+```{r}
+oob <- getOOB(rgSset)
+```
+
+```{r}
+sessionInfo()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+¡
+
